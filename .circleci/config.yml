@@ -52,9 +52,7 @@ jobs:
           at: .
 
       - gcp-cli/install
-      - gcp-cli/setup:
-          gcp_cred_config: GCP_CRED_CONFIG_FILE
-          service_account: "circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+      - gcp-cli/setup
 
       - run:
           name: Configure Docker for Google Artifact Registry
