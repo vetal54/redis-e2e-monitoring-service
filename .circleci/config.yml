@@ -24,21 +24,21 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - gradle/with_cache:
-          cache_key: build-v1
-          deps_checksum_file: build.gradle
-          steps:
-            - run:
-                name: Run Tests and Build Jar
-                command: |
-                  # Прокидуємо хост для Testcontainers (захист від падіння Redis тесту)
-                  export TESTCONTAINERS_HOST_OVERRIDE=$(echo $DOCKER_HOST | sed 's/tcp:\/\///' | cut -d: -f1)
-                  ./gradlew build
-
+      - restore_cache:
+          keys:
+            - v1-gradle-{{ checksum "build.gradle" }}
+            - v1-gradle-
+      - run:
+          name: Run Tests and Build Jar
+          command: ./gradlew build
+      - save_cache:
+          paths:
+            - ~/.gradle
+          key: v1-gradle-{{ checksum "build.gradle" }}
       - persist_to_workspace:
           root: .
           paths:
-            - build
+            - build/libs
             - build.gradle
 
   push_image_to_gar:
