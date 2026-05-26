@@ -61,7 +61,6 @@ jobs:
             echo "export PATH=\$PATH:\$HOME/google-cloud-sdk/bin" >> $BASH_ENV
             
             echo "--- Preparing OIDC Token File ---"
-            # Створюємо файл токена локально, він потрібен ТІЛЬКИ для gcloud на одну секунду
             echo "$CIRCLE_OIDC_TOKEN" > /tmp/gcp_oidc_token.txt
 
             echo "--- Generating OIDC Credential Config ---"
@@ -71,20 +70,17 @@ jobs:
                 --service-account="circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
                 --credential-source-file=/tmp/gcp_oidc_token.txt
 
-            # Наша перевірена магія заміни авдиторії на UUID проєкту CircleCI
-            sed -i 's|"//iam.googleapis.com/projects/[0-9]*/locations/global/workloadIdentityPools/circleci-pool-v4/providers/circleci-provider"|"2ab2cb71-f697-42bc-a8ea-7b4490572079"|g' /tmp/gcp_cred_config.json
-
             echo "export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_cred_config.json" >> $BASH_ENV
             source $BASH_ENV
 
             echo "--- Logging into Google Cloud & Extracting Access Token ---"
             gcloud auth login --cred-file=/tmp/gcp_cred_config.json --quiet
             
-            # ВИПРАВЛЕНО: Замість нестабільного docker-helper ми генеруємо чистий ТИМЧАСОВИЙ ТОКЕН ДОСТУПУ
+            # Тепер Google STS прийме цей запит без помилок, бо конфіг оригінальний, 
+            # а пул в GCP вже знає про ваш CircleCI UUID
             ACCESS_TOKEN=$(gcloud auth print-access-token)
             
-            # Прямий логін в Docker Registry за допомогою отриманого токена.
-            # Це передає авторизацію на віддалений Docker-хост миттєво і без файлів!
+            echo "--- Logging into Docker Registry ---"
             echo "$ACCESS_TOKEN" | docker login -u oauth2access --password-stdin https://${GCP_REGION}-docker.pkg.dev
             
 
