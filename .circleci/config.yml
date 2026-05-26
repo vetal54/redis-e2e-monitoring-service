@@ -73,18 +73,21 @@ jobs:
             echo "export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_cred_config.json" >> $BASH_ENV
             source $BASH_ENV
 
-            echo "--- Logging into Google Cloud & Extracting Access Token ---"
+            echo "--- Logging into Google Cloud ---"
             gcloud auth login --cred-file=/tmp/gcp_cred_config.json --quiet
-            
-            # ОНОВЛЕНО: Явно кажемо gcloud, в якому проєкті ми працюємо
             gcloud config set project ${GCP_PROJECT_ID} --quiet
-            
-            # Тепер токен згенерується з чіткими правами під цей проєкт
-            ACCESS_TOKEN=$(gcloud auth print-access-token)
-            
-            echo "--- Logging into Docker Registry ---"
-            echo "$ACCESS_TOKEN" | docker login -u oauth2access --password-stdin "https://${GCP_REGION}-docker.pkg.dev"
-            
+
+            echo "--- Configuring Docker for Artifact Registry ---"
+            # 1. Активуємо офіційний хелпер авторизації для вашого регіону GAR
+            gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+            # 2. НАДВАЖЛИВИЙ КРОК ДЛЯ setup_remote_docker:
+            # Копіюємо налаштування авторизації Docker у системну папку віддаленого хоста,
+            # щоб наступна команда "docker push" миттєво підхопила права gcloud!
+            if [ -f "$HOME/.docker/config.json" ]; then
+                mkdir -p ~/.docker
+                cp "$HOME/.docker/config.json" ~/.docker/config.json
+            fi
 
       - run:
           name: Build and Push Docker Image
