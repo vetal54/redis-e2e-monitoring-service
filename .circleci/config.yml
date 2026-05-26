@@ -51,12 +51,26 @@ jobs:
       - attach_workspace:
           at: .
 
-      - gcp-cli/install
-      - gcp-cli/setup
-
       - run:
-          name: Configure Docker for Google Artifact Registry
+          name: Install gcloud CLI & Authenticate via OIDC
           command: |
+            echo "--- Installing Google Cloud CLI ---"
+            curl -sSL https://sdk.cloud.google.com | bash > /dev/null
+            export PATH=$PATH:$HOME/google-cloud-sdk/bin
+            echo "export PATH=\$PATH:\$HOME/google-cloud-sdk/bin" >> $BASH_ENV
+            
+            echo "--- Generating OIDC Credential Config ---"
+            /home/circleci/google-cloud-sdk/bin/gcloud iam workload-identity-pools create-cred-config \
+                "projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/circleci-pool-v4/providers/circleci-provider" \
+                --output-file=/tmp/gcp_cred_config.json \
+                --service-account="circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
+                --grant-by-audience
+            
+            echo "export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_cred_config.json" >> $BASH_ENV
+            source $BASH_ENV
+            
+            echo "--- Logging into Google Cloud ---"
+            gcloud auth login --cred-file=/tmp/gcp_cred_config.json --quiet
             gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet
       - run:
           name: Build and Push Docker Image
