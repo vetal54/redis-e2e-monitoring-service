@@ -67,11 +67,11 @@ jobs:
 
             echo "--- Generating OIDC Credential Config ---"
             gcloud iam workload-identity-pools create-cred-config \
-                "projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/circleci-pool-v4/providers/circleci-provider" \
+                "2ab2cb71-f697-42bc-a8ea-7b4490572079" \
                 --output-file=/tmp/gcp_cred_config.json \
                 --service-account="circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
                 --credential-source-file=/tmp/gcp_oidc_token.txt \
-                --audience="2ab2cb71-f697-42bc-a8ea-7b4490572079"
+                --sts-location="https://sts.googleapis.com/v1/token"
 
             echo "export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_cred_config.json" >> $BASH_ENV
             source $BASH_ENV
