@@ -55,24 +55,32 @@ jobs:
           command: |
             echo "--- Installing Google Cloud CLI (Automated) ---"
             curl -sSL https://sdk.cloud.google.com -o install.sh
-            
             bash install.sh --disable-prompts > /dev/null
             
             export PATH=$PATH:$HOME/google-cloud-sdk/bin
             echo "export PATH=\$PATH:\$HOME/google-cloud-sdk/bin" >> $BASH_ENV
             
+            echo "--- Preparing OIDC Token File ---"
+            # Записуємо OIDC токен від CircleCI у файл, як цього вимагає Google
+            echo "export CIRCLE_OIDC_TOKEN_FILE=/gcp_oidc_token.txt" >> $BASH_ENV
+            echo "$CIRCLE_OIDC_TOKEN" > /gcp_oidc_token.txt
+
             echo "--- Generating OIDC Credential Config ---"
+            # ОНОВЛЕНО: Додано обов'язковий прапорець --credential-source-file
             gcloud iam workload-identity-pools create-cred-config \
                 "projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/circleci-pool-v4/providers/circleci-provider" \
                 --output-file=/tmp/gcp_cred_config.json \
-                --service-account="circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
-            
+                --service-account="circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
+                --credential-source-file=/gcp_oidc_token.txt
+
             echo "export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_cred_config.json" >> $BASH_ENV
             source $BASH_ENV
-            
+
             echo "--- Logging into Google Cloud ---"
             gcloud auth login --cred-file=/tmp/gcp_cred_config.json --quiet
             gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet
+            
+
       - run:
           name: Build and Push Docker Image
           command: |
