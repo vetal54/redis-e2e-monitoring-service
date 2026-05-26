@@ -1,10 +1,14 @@
 version: 2.1
 
+orbs:
+  gcp-cli: circleci/gcp-cli@3.2.1
+
 workflows:
   gitops_pipeline:
     jobs:
       - build_and_test
       - push_image_to_gar:
+          context: gcp-context 
           requires:
             - build_and_test
           filters:
@@ -42,24 +46,32 @@ jobs:
       - setup_remote_docker
       - attach_workspace:
           at: .
+      - run:
+          name: Authenticate Google Cloud via OIDC
+          command: |
+            # 1. Створюємо правильний конфіг авторизації для Google клієнта
+            gcloud iam workload-identity-pools create-cred-config \
+                "projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/circleci-pool-v4/providers/circleci-provider" \
+                --output-file=/tmp/gcp_cred_config.json \
+                --service-account="circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
+                --grant-by-audience
+
+            # 2. Передаємо шлях до конфігу в системну змінну Google
+            echo "export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_cred_config.json" >> $BASH_ENV
+            source $BASH_ENV
+
+            # 3. Авторизуємо gcloud та Docker для нашого регіону GAR
+            gcloud auth login --cred-file=/tmp/gcp_cred_config.json --quiet
+            gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet
 
       - run:
-          name: Authenticate Google Cloud
+          name: Configure Docker for Google Artifact Registry
           command: |
-            gcloud iam workload-identity-pools create-cred-config \
-                projects/redis-monitoring-service/locations/global/workloadIdentityPools/circleci-pool-v2/providers/circleci-provider \
-                --service-account=circleci-uploader@redis-monitoring-service.iam.gserviceaccount.com \
-                --output-file=/tmp/gcp_cred_config.json
+            gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet
 
-            gcloud auth login --cred-file=/tmp/gcp_cred_config.json
-            gcloud auth configure-docker europe-west3-docker.pkg.dev --quiet
       - run:
           name: Build and Push Docker Image
           command: |
-            GAR_IMAGE="europe-west3-docker.pkg.dev/my-gcp-project-id/my-java-repo/java-app:${CIRCLE_SHA1}"
-            
-            echo "--- Building image via Spring Boot ---"
+            GAR_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/my-java-repo/java-app:${CIRCLE_SHA1}"
             ./gradlew bootBuildImage --imageName=$GAR_IMAGE
-            
-            echo "--- Push to Google Artifact Registry ---"
             docker push $GAR_IMAGE
