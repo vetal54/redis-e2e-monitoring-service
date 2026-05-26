@@ -66,12 +66,12 @@ jobs:
             echo "$CIRCLE_OIDC_TOKEN" > /tmp/gcp_oidc_token.txt
 
             echo "--- Generating OIDC Credential Config ---"
-            # ВИПРАВЛЕНО: Вказано новий шлях до файлу токена
             gcloud iam workload-identity-pools create-cred-config \
                 "projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/circleci-pool-v4/providers/circleci-provider" \
                 --output-file=/tmp/gcp_cred_config.json \
                 --service-account="circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
-                --credential-source-file=/tmp/gcp_oidc_token.txt
+                --credential-source-file=/tmp/gcp_oidc_token.txt \
+                --audience="2ab2cb71-f697-42bc-a8ea-7b4490572079"
 
             echo "export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_cred_config.json" >> $BASH_ENV
             source $BASH_ENV
