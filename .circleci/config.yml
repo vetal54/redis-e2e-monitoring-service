@@ -76,12 +76,14 @@ jobs:
             echo "--- Logging into Google Cloud & Extracting Access Token ---"
             gcloud auth login --cred-file=/tmp/gcp_cred_config.json --quiet
             
-            # Тепер Google STS прийме цей запит без помилок, бо конфіг оригінальний, 
-            # а пул в GCP вже знає про ваш CircleCI UUID
+            # ОНОВЛЕНО: Явно кажемо gcloud, в якому проєкті ми працюємо
+            gcloud config set project ${GCP_PROJECT_ID} --quiet
+            
+            # Тепер токен згенерується з чіткими правами під цей проєкт
             ACCESS_TOKEN=$(gcloud auth print-access-token)
             
             echo "--- Logging into Docker Registry ---"
-            echo "$ACCESS_TOKEN" | docker login -u oauth2access --password-stdin https://${GCP_REGION}-docker.pkg.dev
+            echo "$ACCESS_TOKEN" | docker login -u oauth2access --password-stdin "https://${GCP_REGION}-docker.pkg.dev"
             
 
       - run:
