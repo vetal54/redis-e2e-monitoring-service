@@ -56,10 +56,10 @@ jobs:
             echo "--- Installing Google Cloud CLI (Automated) ---"
             curl -sSL https://sdk.cloud.google.com -o install.sh
             bash install.sh --disable-prompts > /dev/null
-            
+
             export PATH=$PATH:$HOME/google-cloud-sdk/bin
             echo "export PATH=\$PATH:\$HOME/google-cloud-sdk/bin" >> $BASH_ENV
-            
+
             echo "--- Preparing OIDC Token File ---"
             echo "$CIRCLE_OIDC_TOKEN" > /tmp/gcp_oidc_token.txt
 
@@ -78,16 +78,14 @@ jobs:
             gcloud config set project ${GCP_PROJECT_ID} --quiet
 
             echo "--- Configuring Docker for Artifact Registry ---"
-            # 1. Активуємо офіційний хелпер авторизації для вашого регіону GAR
-            gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+            # МАГІЯ ДЛЯ setup_remote_docker: Явно кажемо Docker шукати конфіг у нашій домашній папці
+            # Це змусить віддалений Docker-хост синхронізувати авторизацію автоматично.
+            mkdir -p $HOME/.docker
+            echo "export DOCKER_CONFIG=$HOME/.docker" >> $BASH_ENV
+            source $BASH_ENV
 
-            # 2. НАДВАЖЛИВИЙ КРОК ДЛЯ setup_remote_docker:
-            # Копіюємо налаштування авторизації Docker у системну папку віддаленого хоста,
-            # щоб наступна команда "docker push" миттєво підхопила права gcloud!
-            if [ -f "$HOME/.docker/config.json" ]; then
-                mkdir -p ~/.docker
-                cp "$HOME/.docker/config.json" ~/.docker/config.json
-            fi
+            # Активуємо хелпер авторизації — тепер він запише дані точно в $HOME/.docker/config.json
+            gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
 
       - run:
           name: Build and Push Docker Image
