@@ -1,0 +1,7 @@
+app:
+  redis:
+    cluster-name: test-cluster
+    probe-interval: 1s
+    probe-ttl: 5s
+    metrics:
+      delay: 1s

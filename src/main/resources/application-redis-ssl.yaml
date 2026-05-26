@@ -1,0 +1,17 @@
+spring:
+  config:
+    activate:
+      on-profile: redis-ssl
+
+  data:
+    redis:
+      ssl:
+        enabled: true
+        bundle: redis-ca
+
+  ssl:
+    bundle:
+      pem:
+        redis-ca:
+          truststore:
+            certificate: ${REDIS_SSL_CERT_LOCATION}

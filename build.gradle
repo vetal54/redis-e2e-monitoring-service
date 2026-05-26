@@ -1,0 +1,104 @@
+plugins {
+	id 'java'
+    id 'org.springframework.boot' version "${springBootVersion}"
+    id 'io.spring.dependency-management' version "${springDependencyManagementVersion}"
+
+    id 'checkstyle'
+    id 'jacoco'
+}
+
+group = 'com.redis'
+version = '1.0.9'
+description = 'Redis e2e monitoring service'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "com.google.cloud:spring-cloud-gcp-dependencies:${springCloudGcpDependenciesVersion}"
+    }
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.codehaus.janino:janino'
+    implementation "com.google.cloud:spring-cloud-gcp-starter-logging"
+
+    implementation "io.opentelemetry:opentelemetry-exporter-otlp"
+    runtimeOnly 'io.micrometer:micrometer-registry-otlp'
+
+    implementation "org.projectlombok:lombok:${lombokVersion}"
+	compileOnly "org.projectlombok:lombok:${lombokVersion}"
+	annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation "org.junit.jupiter:junit-jupiter"
+    testImplementation "org.mockito:mockito-junit-jupiter"
+    testImplementation "org.assertj:assertj-core"
+    testImplementation "org.awaitility:awaitility"
+    testImplementation "org.testcontainers:testcontainers:${testcontainersVersion}"
+    testImplementation "org.testcontainers:junit-jupiter:${testcontainersVersion}"
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs.add("-Xlint:deprecation")
+}
+
+apply from: 'gradle/codeCheckingConfigs.gradle'
+
+bootJar {
+    layered {
+        enabled = true
+    }
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+
+    testLogging {
+        events "passed", "skipped", "failed"
+        showStandardStreams = false
+    }
+}
+
+test {
+    description = 'Runs unit tests (excludes integration tests).'
+
+    useJUnitPlatform {
+        excludeTags 'integration'
+    }
+}
+
+tasks.register('integrationTest', Test) {
+    description = 'Runs integration tests.'
+    group = 'verification'
+
+    useJUnitPlatform {
+        includeTags 'integration'
+    }
+
+    shouldRunAfter test
+
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+}
+
+check.dependsOn integrationTest

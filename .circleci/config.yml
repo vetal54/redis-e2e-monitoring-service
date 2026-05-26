@@ -1,0 +1,65 @@
+version: 2.1
+
+workflows:
+  gitops_pipeline:
+    jobs:
+      - build_and_test
+      - push_image_to_gar:
+          requires:
+            - build_and_test
+          filters:
+            branches:
+              only: main
+
+jobs:
+  build_and_test:
+    docker:
+      - image: cimg/openjdk:21.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-gradle-{{ checksum "build.gradle" }}
+            - v1-gradle-
+      - run:
+          name: Run Tests and Build Jar
+          command: ./gradlew build
+      - save_cache:
+          paths:
+            - ~/.gradle
+          key: v1-gradle-{{ checksum "build.gradle" }}
+      - persist_to_workspace:
+          root: .
+          paths:
+            - build/libs
+            - build.gradle
+
+  push_image_to_gar:
+    docker:
+      - image: cimg/openjdk:21.0
+    steps:
+      - checkout
+      - setup_remote_docker
+      - attach_workspace:
+          at: .
+
+      - run:
+          name: Authenticate Google Cloud
+          command: |
+            gcloud iam workload-identity-pools create-cred-config \
+                projects/redis-monitoring-service/locations/global/workloadIdentityPools/circleci-pool-v2/providers/circleci-provider \
+                --service-account=circleci-uploader@redis-monitoring-service.iam.gserviceaccount.com \
+                --output-file=/tmp/gcp_cred_config.json
+
+            gcloud auth login --cred-file=/tmp/gcp_cred_config.json
+            gcloud auth configure-docker europe-west3-docker.pkg.dev --quiet
+      - run:
+          name: Build and Push Docker Image
+          command: |
+            GAR_IMAGE="europe-west3-docker.pkg.dev/my-gcp-project-id/my-java-repo/java-app:${CIRCLE_SHA1}"
+            
+            echo "--- Building image via Spring Boot ---"
+            ./gradlew bootBuildImage --imageName=$GAR_IMAGE
+            
+            echo "--- Push to Google Artifact Registry ---"
+            docker push $GAR_IMAGE
