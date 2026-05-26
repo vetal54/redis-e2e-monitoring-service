@@ -65,8 +65,7 @@ jobs:
             gcloud iam workload-identity-pools create-cred-config \
                 "projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/circleci-pool-v4/providers/circleci-provider" \
                 --output-file=/tmp/gcp_cred_config.json \
-                --service-account="circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
-                --grant-by-audience
+                --service-account="circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
             
             echo "export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_cred_config.json" >> $BASH_ENV
             source $BASH_ENV
