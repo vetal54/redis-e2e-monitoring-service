@@ -60,18 +60,16 @@ jobs:
             export PATH=$PATH:$HOME/google-cloud-sdk/bin
             echo "export PATH=\$PATH:\$HOME/google-cloud-sdk/bin" >> $BASH_ENV
             
-            echo "--- Preparing OIDC Token File ---"
-            # ВИПРАВЛЕНО: Змінено шлях на /tmp/, де у нас є всі права
-            echo "export CIRCLE_OIDC_TOKEN_FILE=/tmp/gcp_oidc_token.txt" >> $BASH_ENV
-            echo "$CIRCLE_OIDC_TOKEN" > /tmp/gcp_oidc_token.txt
-
             echo "--- Generating OIDC Credential Config ---"
+            # ОНОВЛЕНО: Повертаємо шлях до провайдера на перше місце, прибираємо багований --sts-location
+            # та використовуємо правильну комбінацію прапорців для кастомної авдиторії
             gcloud iam workload-identity-pools create-cred-config \
-                "2ab2cb71-f697-42bc-a8ea-7b4490572079" \
+                "projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/circleci-pool-v4/providers/circleci-provider" \
                 --output-file=/tmp/gcp_cred_config.json \
                 --service-account="circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
-                --credential-source-file=/tmp/gcp_oidc_token.txt \
-                --sts-location="https://sts.googleapis.com/v1/token"
+                --credential-source-file=/tmp/gcp_oidc_token.txt
+
+            sed -i 's|"//iam.googleapis.com/projects/[0-9]*/locations/global/workloadIdentityPools/circleci-pool-v4/providers/circleci-provider"|"2ab2cb71-f697-42bc-a8ea-7b4490572079"|g' /tmp/gcp_cred_config.json
 
             echo "export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_cred_config.json" >> $BASH_ENV
             source $BASH_ENV
