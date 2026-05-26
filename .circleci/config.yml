@@ -17,6 +17,7 @@ jobs:
       - image: cimg/openjdk:21.0
     steps:
       - checkout
+      - setup_remote_docker
       - restore_cache:
           keys:
             - v1-gradle-{{ checksum "build.gradle" }}
