@@ -2,6 +2,7 @@ version: 2.1
 
 orbs:
   gradle: circleci/gradle@3.0.0
+  gcp-cli: circleci/gcp-cli@3.2.1
 
 workflows:
   gitops_pipeline:
@@ -50,21 +51,15 @@ jobs:
       - attach_workspace:
           at: .
 
+      - gcp-cli/install
+      - gcp-cli/setup:
+          gcp_cred_config: GCP_CRED_CONFIG_FILE
+          service_account: "circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+
       - run:
-          name: Authenticate Google Cloud via OIDC
+          name: Configure Docker for Google Artifact Registry
           command: |
-            gcloud iam workload-identity-pools create-cred-config \
-                "projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/circleci-pool-v4/providers/circleci-provider" \
-                --output-file=/tmp/gcp_cred_config.json \
-                --service-account="circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
-                --grant-by-audience
-
-            echo "export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_cred_config.json" >> $BASH_ENV
-            source $BASH_ENV
-
-            gcloud auth login --cred-file=/tmp/gcp_cred_config.json --quiet
             gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet
-
       - run:
           name: Build and Push Docker Image
           command: |
