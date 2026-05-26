@@ -54,7 +54,9 @@ jobs:
           name: Install gcloud CLI & Authenticate via OIDC
           command: |
             echo "--- Installing Google Cloud CLI (Automated) ---"
-            curl -sSL https://sdk.cloud.google.com | bash --0 -s -- --disable-prompts > /dev/null
+            curl -sSL https://sdk.cloud.google.com -o install.sh
+            
+            bash install.sh --disable-prompts > /dev/null
             
             export PATH=$PATH:$HOME/google-cloud-sdk/bin
             echo "export PATH=\$PATH:\$HOME/google-cloud-sdk/bin" >> $BASH_ENV
