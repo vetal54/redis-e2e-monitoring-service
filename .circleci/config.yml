@@ -2,7 +2,6 @@ version: 2.1
 
 orbs:
   gradle: circleci/gradle@3.0.0
-  gcp-cli: circleci/gcp-cli@3.2.1
 
 workflows:
   gitops_pipeline:
