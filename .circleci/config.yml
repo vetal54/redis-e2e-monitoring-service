@@ -41,7 +41,7 @@ commands:
             gcloud config set project ${GCP_PROJECT_ID} --quiet
 
   configure_docker_provider:
-    description: "Налаштування Docker-демона для роботи з Artifact Registry"
+    description: "Configuring the Docker daemon to work with Artifact Registry"
     steps:
       - run:
           name: Configure Docker Auth
@@ -110,9 +110,12 @@ jobs:
       - run:
           name: Build and Push Docker Image
           command: |
-            GAR_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/my-java-repo/java-app:${CIRCLE_SHA1}"
+            APP_VERSION=$(cat version)
+            echo "--- Detected project version: $APP_VERSION ---"
             
-            echo "--- Building image via Spring Boot ---"
+            GAR_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/my-java-repo/java-app:${APP_VERSION}"
+            
+            echo "--- Building image via Spring Boot ($GAR_IMAGE) ---"
             ./gradlew bootBuildImage --imageName=$GAR_IMAGE
             
             echo "--- Push to Google Artifact Registry ---"
