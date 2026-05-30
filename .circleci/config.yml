@@ -10,12 +10,9 @@ commands:
       - run:
           name: Install Google Cloud CLI
           command: |
-            echo "--- Installing Google Cloud CLI (Automated) ---"
             curl -sSL https://sdk.cloud.google.com -o install.sh
             bash install.sh --disable-prompts > /dev/null
-            
-            export PATH=$PATH:$HOME/google-cloud-sdk/bin
-            echo "export PATH=\$PATH:\$HOME/google-cloud-sdk/bin" >> $BASH_ENV
+            echo "export PATH=$PATH:$HOME/google-cloud-sdk/bin" >> $BASH_ENV
 
   authenticate_gcloud:
     description: "Exchange CircleCI OIDC token for temporary GCP access"
@@ -23,10 +20,8 @@ commands:
       - run:
           name: Authenticate via OIDC Workload Identity
           command: |
-            echo "--- Preparing OIDC Token File ---"
             echo "$CIRCLE_OIDC_TOKEN" > /tmp/gcp_oidc_token.txt
 
-            echo "--- Generating OIDC Credential Config ---"
             gcloud iam workload-identity-pools create-cred-config \
                 "projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/circleci-pool-v4/providers/circleci-provider" \
                 --output-file=/tmp/gcp_cred_config.json \
@@ -34,9 +29,7 @@ commands:
                 --credential-source-file=/tmp/gcp_oidc_token.txt
 
             echo "export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_cred_config.json" >> $BASH_ENV
-            source $BASH_ENV
 
-            echo "--- Logging into Google Cloud ---"
             gcloud auth login --cred-file=/tmp/gcp_cred_config.json --quiet
             gcloud config set project ${GCP_PROJECT_ID} --quiet
 
@@ -45,13 +38,7 @@ commands:
     steps:
       - run:
           name: Configure Docker Auth
-          command: |
-            echo "--- Configuring Docker for Artifact Registry ---"
-            mkdir -p $HOME/.docker
-            echo "export DOCKER_CONFIG=$HOME/.docker" >> $BASH_ENV
-            source $BASH_ENV
-
-            gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+          command: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
 
 workflows:
   gitops_pipeline:
@@ -81,12 +68,11 @@ jobs:
             - run:
                 name: Export version
                 command: |
-                  VERSION=`gradle properties -q | grep "^version:" | awk '{print $2}'`
+                  VERSION=$(gradle properties -q | grep "^version:" | awk '{print $2}')
                   echo "$VERSION" > version
             - run:
                 name: Assemble the code
-                command: |
-                  gradle build
+                command: gradle build
       - gradle/collect_test_results
       - persist_to_workspace:
           root: .
@@ -102,21 +88,14 @@ jobs:
       - setup_remote_docker
       - attach_workspace:
           at: .
-
       - install_gcloud
       - authenticate_gcloud
       - configure_docker_provider
-
       - run:
           name: Build and Push Docker Image
           command: |
             APP_VERSION=$(cat version)
-            echo "--- Detected project version: $APP_VERSION ---"
-            
             GAR_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/my-java-repo/java-app:${APP_VERSION}"
-            
-            echo "--- Building image via Spring Boot ($GAR_IMAGE) ---"
+
             ./gradlew bootBuildImage --imageName=$GAR_IMAGE
-            
-            echo "--- Push to Google Artifact Registry ---"
             docker push $GAR_IMAGE
