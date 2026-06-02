@@ -1,5 +1,27 @@
 version: 2.1
 
+workflows:
+  gitops_pipeline:
+    jobs:
+      - build_and_test:
+          context: gcp-context
+
+      - push_image_to_gar:
+          context: gcp-context
+          requires:
+            - build_and_test
+          filters:
+            branches:
+              only: main
+
+      - deploy_to_argo:
+          context: gcp-context
+          requires:
+            - push_image_to_gar
+          filters:
+            branches:
+              only: main
+
 orbs:
   gradle: circleci/gradle@3.0.0
 
@@ -39,20 +61,6 @@ commands:
       - run:
           name: Configure Docker Auth
           command: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
-
-workflows:
-  gitops_pipeline:
-    jobs:
-      - build_and_test:
-          context: gcp-context
-
-      - push_image_to_gar:
-          context: gcp-context
-          requires:
-            - build_and_test
-          filters:
-            branches:
-              only: main
 
 jobs:
   build_and_test:
@@ -99,3 +107,37 @@ jobs:
 
             ./gradlew bootBuildImage --imageName=$GAR_IMAGE
             docker push $GAR_IMAGE
+
+  deploy_to_argo:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+
+      - run:
+          name: Clone Argo repo
+          command: |
+            REPO_DIR="$HOME/argo-repo"
+            echo "export REPO_DIR=$REPO_DIR" >> $BASH_ENV
+
+            git clone --depth=1 \
+              --branch main \
+              --config "user.name=argo-cd[bot]" \
+              --config "user.email=argo-cd[bot]@users.noreply.github.com" \
+              "https://x-access-token:${ARGOCD_REPOSITORY_ACCESS_TOKEN}@${ARGOCD_REPOSITORY_URL}" \
+              "$REPO_DIR"
+
+      - run:
+          name: Update image tag
+          command: |
+            APP_VERSION=$(cat /tmp/workspace/version)
+            yq -i ".image.tag = \"${APP_VERSION}\"" ${REPO_DIR}/values/java-app/main/values.yaml
+            git -C ${REPO_DIR} diff
+
+      - run:
+          name: Commit and push
+          command: |
+            APP_VERSION=$(cat /tmp/workspace/version)
+            git -C ${REPO_DIR} commit -am "chore: bump java-app to ${APP_VERSION} [skip ci]"
+            git -C ${REPO_DIR} push
