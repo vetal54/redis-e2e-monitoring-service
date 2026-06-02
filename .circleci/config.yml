@@ -132,7 +132,7 @@ jobs:
           name: Update image tag
           command: |
             APP_VERSION=$(cat /tmp/workspace/version)
-            yq -i ".image.tag = \"${APP_VERSION}\"" ${REPO_DIR}/values/java-app/main/values.yaml
+            yq -i ".image.tag = \"${APP_VERSION}\"" ${REPO_DIR}/values/java-app/values.yaml
             git -C ${REPO_DIR} diff
 
       - run:
