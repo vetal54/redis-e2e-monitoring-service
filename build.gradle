@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'com.redis'
-version = '1.1.0'
+version = '1.1.1'
 description = 'Redis e2e monitoring service'
 
 java {

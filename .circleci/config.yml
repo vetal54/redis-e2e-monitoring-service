@@ -25,43 +25,6 @@ workflows:
 orbs:
   gradle: circleci/gradle@3.0.0
 
-commands:
-  install_gcloud:
-    description: "Download and install Google Cloud SDK CLI"
-    steps:
-      - run:
-          name: Install Google Cloud CLI
-          command: |
-            curl -sSL https://sdk.cloud.google.com -o install.sh
-            bash install.sh --disable-prompts > /dev/null
-            echo "export PATH=$PATH:$HOME/google-cloud-sdk/bin" >> $BASH_ENV
-
-  authenticate_gcloud:
-    description: "Exchange CircleCI OIDC token for temporary GCP access"
-    steps:
-      - run:
-          name: Authenticate via OIDC Workload Identity
-          command: |
-            echo "$CIRCLE_OIDC_TOKEN" > /tmp/gcp_oidc_token.txt
-
-            gcloud iam workload-identity-pools create-cred-config \
-                "projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/circleci-pool-v4/providers/circleci-provider" \
-                --output-file=/tmp/gcp_cred_config.json \
-                --service-account="circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
-                --credential-source-file=/tmp/gcp_oidc_token.txt
-
-            echo "export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_cred_config.json" >> $BASH_ENV
-
-            gcloud auth login --cred-file=/tmp/gcp_cred_config.json --quiet
-            gcloud config set project ${GCP_PROJECT_ID} --quiet
-
-  configure_docker_provider:
-    description: "Configuring the Docker daemon to work with Artifact Registry"
-    steps:
-      - run:
-          name: Configure Docker Auth
-          command: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
-
 jobs:
   build_and_test:
     docker:
@@ -132,12 +95,49 @@ jobs:
           name: Update image tag
           command: |
             APP_VERSION=$(cat /tmp/workspace/version)
-            yq -i ".image.tag = \"${APP_VERSION}\"" ${REPO_DIR}/values/java-app/values.yaml
+            yq -i ".image.tag = \"${APP_VERSION}\"" ${REPO_DIR}/charts/redis-monitoring/values.yaml
             git -C ${REPO_DIR} diff
 
       - run:
           name: Commit and push
           command: |
             APP_VERSION=$(cat /tmp/workspace/version)
-            git -C ${REPO_DIR} commit -am "chore: bump java-app to ${APP_VERSION} [skip ci]"
+            git -C ${REPO_DIR} commit -am "chore: bump redis-service to ${APP_VERSION} [skip ci]"
             git -C ${REPO_DIR} push
+
+commands:
+  install_gcloud:
+    description: "Download and install Google Cloud SDK CLI"
+    steps:
+      - run:
+          name: Install Google Cloud CLI
+          command: |
+            curl -sSL https://sdk.cloud.google.com -o install.sh
+            bash install.sh --disable-prompts > /dev/null
+            echo "export PATH=$PATH:$HOME/google-cloud-sdk/bin" >> $BASH_ENV
+
+  authenticate_gcloud:
+    description: "Exchange CircleCI OIDC token for temporary GCP access"
+    steps:
+      - run:
+          name: Authenticate via OIDC Workload Identity
+          command: |
+            echo "$CIRCLE_OIDC_TOKEN" > /tmp/gcp_oidc_token.txt
+
+            gcloud iam workload-identity-pools create-cred-config \
+                "projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/circleci-pool-v4/providers/circleci-provider" \
+                --output-file=/tmp/gcp_cred_config.json \
+                --service-account="circleci-uploader@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
+                --credential-source-file=/tmp/gcp_oidc_token.txt
+
+            echo "export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_cred_config.json" >> $BASH_ENV
+
+            gcloud auth login --cred-file=/tmp/gcp_cred_config.json --quiet
+            gcloud config set project ${GCP_PROJECT_ID} --quiet
+
+  configure_docker_provider:
+    description: "Configuring the Docker daemon to work with Artifact Registry"
+    steps:
+      - run:
+          name: Configure Docker Auth
+          command: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
