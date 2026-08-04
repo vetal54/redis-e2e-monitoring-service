@@ -25,7 +25,7 @@
             <logger name="org.springframework" level="INFO" additivity="false">
                 <appender-ref ref="CONSOLE_JSON"/>
             </logger>
-            <logger name="com.redis" level="INFO" additivity="false">
+            <logger name="com.redis" level="DEBUG" additivity="false">
                 <appender-ref ref="CONSOLE_JSON"/>
             </logger>
             <logger name="reactor" level="INFO" additivity="false">
@@ -43,7 +43,7 @@
             <logger name="org.springframework" level="INFO" additivity="false">
                 <appender-ref ref="STDOUT"/>
             </logger>
-            <logger name="com.redis" level="INFO" additivity="false">
+            <logger name="com.redis" level="DEBUG" additivity="false">
                 <appender-ref ref="STDOUT"/>
             </logger>
             <logger name="reactor" level="INFO" additivity="false">
