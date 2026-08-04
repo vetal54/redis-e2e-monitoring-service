@@ -56,7 +56,7 @@ jobs:
 
   push_image_to_gar:
     docker:
-      - image: cimg/openjdk:21.0
+      - image: cimg/openjdk:21.0.11
     steps:
       - checkout
       - setup_remote_docker
