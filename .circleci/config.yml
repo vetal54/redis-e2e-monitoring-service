@@ -31,11 +31,8 @@ jobs:
       - image: cimg/openjdk:21.0
     steps:
       - run:
-          name: Debug workdir contents
-          command: |
-            pwd
-            ls -la
-            whoami
+          name: Clean workdir before checkout
+          command: rm -rf /home/circleci/project/.bsp
       - checkout
       - setup_remote_docker
       - gradle/with_cache:
